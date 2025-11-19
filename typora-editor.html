@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+    <title>Markdown编辑器 - 仿Typora</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f8f9fa;
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* 工具栏样式 */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+        }
+
+        .toolbar button {
+            background: none;
+            border: none;
+            font-size: 14px;
+            padding: 5px 10px;
+            margin-right: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .toolbar button:hover {
+            background-color: #e9ecef;
+        }
+
+        /* 编辑器主容器 */
+        .editor-container {
+            display: flex;
+            flex: 1;
+            margin-top: 50px;
+            height: calc(100vh - 50px);
+        }
+
+        /* 编辑区域 */
+        .editor {
+            flex: 1;
+            padding: 20px;
+            outline: none;
+            background-color: white;
+            border: none;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.6;
+            border-right: 1px solid #e9ecef;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            tab-size: 4;
+            -moz-tab-size: 4;
+        }
+
+        /* 预览区域 */
+        .preview {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        }
+
+        /* 全屏模式 */
+        .fullscreen .toolbar {
+            display: none;
+        }
+
+        .fullscreen .editor-container {
+            margin-top: 0;
+            height: 100vh;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+
+        /* 分割线 */
+        .divider {
+            width: 1px;
+            background-color: #e9ecef;
+            margin: 0 10px;
+            height: 24px;
+        }
+
+        /* 下拉菜单 */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 1;
+            border-radius: 4px;
+            top: 30px;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f8f9fa;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        /* Markdown 样式 */
+        .preview h1, .preview h2, .preview h3, .preview h4, .preview h5, .preview h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .preview h1 {
+            font-size: 2em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+        }
+
+        .preview h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+        }
+
+        .preview h3 {
+            font-size: 1.25em;
+        }
+
+        .preview h4 {
+            font-size: 1em;
+        }
+
+        .preview h5 {
+            font-size: 0.875em;
+        }
+
+        .preview h6 {
+            font-size: 0.85em;
+            color: #6a737d;
+        }
+
+        .preview p {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        .preview a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        .preview a:hover {
+            text-decoration: underline;
+        }
+
+        .preview pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            white-space: pre;
+            tab-size: 4;
+            -moz-tab-size: 4;
+        }
+
+        .preview code {
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: rgba(27,31,35,0.05);
+            border-radius: 6px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Monaco, Courier, monospace;
+            white-space: pre-wrap;
+        }
+
+        .preview pre code {
+            padding: 0;
+            margin: 0;
+            font-size: 100%;
+            background-color: transparent;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Monaco, Courier, monospace;
+            white-space: pre;
+            tab-size: 4;
+            -moz-tab-size: 4;
+        }
+
+        .preview pre code.language-javascript,
+        .preview pre code.language-js {
+            color: #333;
+        }
+
+        .preview pre code.language-html {
+            color: #e44d26;
+        }
+
+        .preview pre code.language-css {
+            color: #264de4;
+        }
+
+        .preview pre code.language-python {
+            color: #3572A5;
+        }
+
+        /* Highlight.js 样式 */
+        .preview pre code.hljs {
+            display: block;
+            overflow-x: auto;
+            padding: 0.5em;
+            background: #f6f8fa;
+        }
+
+        .preview pre code.hljs .hljs-keyword,
+        .preview pre code.hljs .hljs-selector-tag,
+        .preview pre code.hljs .hljs-subst {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .preview pre code.hljs .hljs-number,
+        .preview pre code.hljs .hljs-literal,
+        .preview pre code.hljs .hljs-variable,
+        .preview pre code.hljs .hljs-template-variable,
+        .preview pre code.hljs .hljs-tag .hljs-attr {
+            color: #008080;
+        }
+
+        .preview pre code.hljs .hljs-string,
+        .preview pre code.hljs .hljs-doctag {
+            color: #d14;
+        }
+
+        .preview pre code.hljs .hljs-title,
+        .preview pre code.hljs .hljs-section,
+        .preview pre code.hljs .hljs-selector-id {
+            color: #900;
+            font-weight: bold;
+        }
+
+        .preview pre code.hljs .hljs-subst {
+            font-weight: normal;
+        }
+
+        .preview pre code.hljs .hljs-type,
+        .preview pre code.hljs .hljs-class .hljs-title {
+            color: #458;
+            font-weight: bold;
+        }
+
+        .preview pre code.hljs .hljs-tag,
+        .preview pre code.hljs .hljs-name,
+        .preview pre code.hljs .hljs-attribute {
+            color: #000080;
+            font-weight: normal;
+        }
+
+        .preview pre code.hljs .hljs-regexp,
+        .preview pre code.hljs .hljs-link {
+            color: #009926;
+        }
+
+        .preview pre code.hljs .hljs-symbol,
+        .preview pre code.hljs .hljs-bullet {
+            color: #990073;
+        }
+
+        .preview pre code.hljs .hljs-built_in,
+        .preview pre code.hljs .hljs-builtin-name {
+            color: #0086b3;
+        }
+
+        .preview pre code.hljs .hljs-meta {
+            color: #999;
+            font-weight: bold;
+        }
+
+        .preview pre code.hljs .hljs-deletion {
+            background: #fdd;
+        }
+
+        .preview pre code.hljs .hljs-addition {
+            background: #dfd;
+        }
+
+        .preview pre code.hljs .hljs-emphasis {
+            font-style: italic;
+        }
+
+        .preview pre code.hljs .hljs-strong {
+            font-weight: bold;
+        }
+
+        .preview blockquote {
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+            margin: 0 0 16px;
+        }
+
+        .preview ul, .preview ol {
+            padding-left: 2em;
+            margin-bottom: 16px;
+        }
+
+        .preview li {
+            margin-bottom: 4px;
+        }
+
+        .preview table {
+            display: block;
+            width: 100%;
+            overflow: auto;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        .preview table th, .preview table td {
+            padding: 6px 13px;
+            border: 1px solid #dfe2e5;
+        }
+
+        .preview table tr:nth-child(2n) {
+            background-color: #f6f8fa;
+        }
+
+        /* wolai特色功能样式 */
+        .todo-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .todo-list-item {
+            list-style: none;
+            margin-bottom: 5px;
+        }
+
+        .todo-list-item input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+
+        .todo-list-item.checked {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .callout {
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 6px;
+            background-color: #f0f4f8;
+            border-left: 4px solid #4285f4;
+        }
+
+        .callout.info {
+            background-color: #e8f0fe;
+            border-left-color: #4285f4;
+        }
+
+        .callout.warning {
+            background-color: #fef7e0;
+            border-left-color: #f9ab00;
+        }
+
+        .callout.error {
+            background-color: #fce8e6;
+            border-left-color: #ea4335;
+        }
+
+        .highlight {
+            background-color: #ffeb3b;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 25px;
+            background-color: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column;
+            }
+            
+            .editor, .preview {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+        }
+
+        /* 文件操作下拉菜单 */
+        .file-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-dropdown-btn {
+            background: none;
+            border: none;
+            font-size: 14px;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .file-dropdown-btn:hover {
+            background-color: #e9ecef;
+        }
+
+        .file-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 1;
+            border-radius: 4px;
+            top: 30px;
+            left: 0;
+        }
+
+        .file-dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .file-dropdown-content a:hover {
+            background-color: #f8f9fa;
+        }
+
+        .file-dropdown:hover .file-dropdown-content {
+            display: block;
+        }
+
+        /* wolai功能按钮 */
+        .wolai-btn {
+            background: none;
+            border: none;
+            font-size: 14px;
+            padding: 5px 10px;
+            margin-right: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #6c757d;
+        }
+
+        .wolai-btn:hover {
+            background-color: #e9ecef;
+        }
+
+        /* 搜索框样式 */
+        .search-container {
+            position: relative;
+            margin-left: 10px;
+        }
+
+        .search-input {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 目录导航 */
+        .toc {
+            position: fixed;
+            right: 20px;
+            top: 70px;
+            width: 200px;
+            max-height: calc(100vh - 120px);
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 99;
+            display: none;
+        }
+
+        .toc.show {
+            display: block;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .toc ul {
+            padding-left: 15px;
+        }
+
+        .toc a {
+            text-decoration: none;
+            color: #333;
+            font-size: 13px;
+            display: block;
+            padding: 3px 0;
+        }
+
+        .toc a:hover {
+            color: #007bff;
+        }
+
+        /* 双击滚动同步样式 */
+        .preview .sync-highlight {
+            background-color: rgba(255, 255, 0, 0.3);
+            transition: background-color 0.5s;
+        }
+        .sidebar {
+            width: 240px;
+            background: white;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .sidebar-title {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .sidebar-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .sidebar-btn:hover {
+            background-color: #f8f9fa;
+        }
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f3f5;
+            cursor: pointer;
+        }
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        .file-name {
+            font-size: 14px;
+            color: #333;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-meta {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .file-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .file-action {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .file-action:hover {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <div class="file-dropdown">
+            <button class="file-dropdown-btn">文件</button>
+            <div class="file-dropdown-content">
+                <a href="#" id="newFile">新建</a>
+                <a href="#" id="openFile">打开</a>
+                <a href="#" id="saveFile">保存</a>
+                <a href="#" id="downloadMd">下载 Markdown</a>
+                <a href="#" id="downloadHtml">下载 HTML</a>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <button id="boldBtn" title="粗体 (Ctrl+B)">B</button>
+        <button id="italicBtn" title="斜体 (Ctrl+I)">I</button>
+        <button id="headingBtn" title="标题 (Ctrl+H)">H</button>
+        <div class="divider"></div>
+        <button id="linkBtn" title="链接 (Ctrl+K)">🔗</button>
+        <button id="imageBtn" title="图片 (Ctrl+Shift+I)">🖼️</button>
+        <div class="divider"></div>
+        <button id="ulBtn" title="无序列表 (Ctrl+U)">•</button>
+        <button id="olBtn" title="有序列表 (Ctrl+Shift+O)">1.</button>
+        <button id="todoListBtn" title="待办列表 (Ctrl+Shift+T)">☑</button>
+        <button id="quoteBtn" title="引用 (Ctrl+Q)">»</button>
+        <div class="divider"></div>
+        <button id="codeBtn" title="代码块 (Ctrl+Shift+C)">⌨</button>
+        <button id="hrBtn" title="分割线 (Ctrl+Shift+H)">—</button>
+        <div class="divider"></div>
+        <button id="highlightBtn" title="高亮 (Ctrl+Shift+H)">★</button>
+        <button id="calloutInfoBtn" title="信息块">ℹ</button>
+        <button id="calloutWarningBtn" title="警告块">⚠</button>
+        <button id="calloutErrorBtn" title="错误块">❗</button>
+        <div class="divider"></div>
+        <button id="previewToggle" title="切换预览 (Ctrl+P)">👁️</button>
+        <button id="fullscreenBtn" title="全屏 (F11)">⛶</button>
+        <button id="tocToggle" title="目录 (Ctrl+J)">≡</button>
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索..." title="搜索 (Ctrl+F)">
+        </div>
+    </div>
+
+    <!-- 目录导航 -->
+    <div class="toc" id="toc">
+        <h3>目录</h3>
+        <ul id="tocList"></ul>
+    </div>
+
+    <!-- 编辑器主容器 -->
+    <div class="editor-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">文件</span>
+                <button class="sidebar-btn" id="newSidebarFile">新建</button>
+            </div>
+            <div class="file-list" id="fileList"></div>
+        </div>
+        <textarea id="editor" class="editor" placeholder="开始编写 Markdown..."># 欢迎使用 Markdown 编辑器
+
+这是一个仿 Typora 风格的在线 Markdown 编辑器，支持实时预览。
+
+## 功能特性
+
+- 实时预览
+- 快捷按钮操作
+- 全屏模式
+- 文件保存与导出
+- 快捷键支持
+- wolai 特色功能
+
+## wolai 特色功能演示
+
+### 待办事项列表
+
+[ ] 完成项目计划
+[x] 设计UI界面
+[ ] 实现核心功能
+[x] 测试兼容性
+
+### 文本高亮效果
+
+这是 ==重要信息==，需要特别关注。
+
+### 信息块
+
+!!!info
+这是一个信息提示块，用于提供额外信息。
+!!!
+
+!!!warning
+这是一个警告提示块，用于提醒注意事项。
+!!!
+
+!!!error
+这是一个错误提示块，用于指出错误或问题。
+!!!
+
+### 代码块高亮示例
+
+```
+// JavaScript 示例代码
+function helloWorld() {
+  console.log("Hello, World!");
+  return true;
+}
+
+const obj = {
+  name: "示例",
+  value: 42
+};
+```
+
+```
+# Python 示例代码
+def hello_world():
+    print("Hello, World!")
+    return True
+
+class Example:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+```
+
+```
+<!-- HTML 示例代码 -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>示例页面</title>
+</head>
+<body>
+  <h1>欢迎</h1>
+  <p>这是一个示例段落。</p>
+</body>
+</html>
+```
+
+```
+/* CSS 示例代码 */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+}
+
+.header {
+  color: #333;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+```
+
+## 快捷键说明
+
+| 快捷键 | 功能 |
+|--------|------|
+| Ctrl+N | 新建文件 |
+| Ctrl+O | 打开文件 |
+| Ctrl+S | 保存文件 |
+| Ctrl+Z | 撤销 |
+| Ctrl+Y | 重做 |
+| Ctrl+B | 粗体 |
+| Ctrl+I | 斜体 |
+| Ctrl+H | 标题 |
+| Ctrl+K | 插入链接 |
+| Ctrl+Shift+I | 插入图片 |
+| Ctrl+U | 无序列表 |
+| Ctrl+Shift+O | 有序列表 |
+| Ctrl+Shift+T | 待办列表 |
+| Ctrl+Q | 引用 |
+| Ctrl+Shift+C | 代码块 |
+| Ctrl+Shift+H | 分割线/高亮 |
+| Ctrl+P | 切换预览 |
+| Ctrl+J | 显示/隐藏目录 |
+| Ctrl+F | 搜索 |
+| F11 | 全屏 |
+
+享受你的写作之旅！</textarea>
+        <div id="preview" class="preview"></div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <span id="wordCount">字数: 0</span>
+        <span style="margin-left: 10px;" id="charCount">字符: 0</span>
+        <span style="margin-left: 10px;" id="lineCount">行数: 1</span>
+    </div>
+
+    <!-- 隐藏的文件输入元素 -->
+    <input type="file" id="fileInput" accept=".md,.markdown" style="display: none;">
+
+    <script>
+        // 命令历史记录系统
+        const history = {
+            states: [''],
+            currentIndex: 0,
+            maxLength: 50, // 最大历史记录数
+            
+            // 保存当前状态
+            saveState: function(content) {
+                // 如果当前索引不在历史记录末尾，删除之后的所有记录
+                if (this.currentIndex < this.states.length - 1) {
+                    this.states = this.states.slice(0, this.currentIndex + 1);
+                }
+                
+                // 添加新状态
+                this.states.push(content);
+                this.currentIndex++;
+                
+                // 限制历史记录长度
+                if (this.states.length > this.maxLength) {
+                    this.states.shift();
+                    this.currentIndex--;
+                }
+            },
+            
+            // 撤销
+            undo: function() {
+                if (this.canUndo()) {
+                    this.currentIndex--;
+                    return this.states[this.currentIndex];
+                }
+                return null;
+            },
+            
+            // 重做
+            redo: function() {
+                if (this.canRedo()) {
+                    this.currentIndex++;
+                    return this.states[this.currentIndex];
+                }
+                return null;
+            },
+            
+            // 是否可以撤销
+            canUndo: function() {
+                return this.currentIndex > 0;
+            },
+            
+            // 是否可以重做
+            canRedo: function() {
+                return this.currentIndex < this.states.length - 1;
+            }
+        };
+
+        // 获取DOM元素
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const wordCount = document.getElementById('wordCount');
+        const charCount = document.getElementById('charCount');
+        const lineCount = document.getElementById('lineCount');
+        const fileInput = document.getElementById('fileInput');
+        const toc = document.getElementById('toc');
+        const tocList = document.getElementById('tocList');
+        const searchInput = document.getElementById('searchInput');
+        const fileListEl = document.getElementById('fileList');
+        const newSidebarFileBtn = document.getElementById('newSidebarFile');
+        let currentFileId = null;
+
+        // 初始化历史记录
+        history.saveState(editor.value);
+
+        // Markdown解析函数
+        function parseMarkdown(text) {
+            const escapeHtml = (str) => str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const normalizedCode = code.replace(/\t/g, '    ');
+                if (lang) {
+                    return `<pre><code class="language-${lang}">${escapeHtml(normalizedCode)}</code></pre>`;
+                } else {
+                    return `<pre><code>${escapeHtml(normalizedCode)}</code></pre>`;
+                }
+            });
+            
+            text = text.replace(/```([\s\S]*?)```/g, (match, p1) => {
+                const normalizedCode = p1.replace(/\t/g, '    ');
+                return `<pre><code>${escapeHtml(normalizedCode)}</code></pre>`;
+            });
+            
+            // 转换行内代码
+            text = text.replace(/`(.*?)`/g, (m, c) => `<code>${escapeHtml(c)}</code>`);
+            
+            // 转换图片
+            text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;">');
+            
+            // 转换链接
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // 转换标题并添加锚点
+            text = text.replace(/^###### (.*$)/gim, '<h6 id="heading-$1"><a href="#heading-$1">#</a> $1</h6>');
+            text = text.replace(/^##### (.*$)/gim, '<h5 id="heading-$1"><a href="#heading-$1">#</a> $1</h5>');
+            text = text.replace(/^#### (.*$)/gim, '<h4 id="heading-$1"><a href="#heading-$1">#</a> $1</h4>');
+            text = text.replace(/^### (.*$)/gim, '<h3 id="heading-$1"><a href="#heading-$1">#</a> $1</h3>');
+            text = text.replace(/^## (.*$)/gim, '<h2 id="heading-$1"><a href="#heading-$1">#</a> $1</h2>');
+            text = text.replace(/^# (.*$)/gim, '<h1 id="heading-$1"><a href="#heading-$1">#</a> $1</h1>');
+            
+            // 转换粗体
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            
+            // 转换斜体
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+            // 转换引用
+            text = text.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+            
+            // 转换待办列表
+            text = text.replace(/^\[ \] (.*$)/gim, '<li class="todo-list-item"><input type="checkbox"> $1</li>');
+            text = text.replace(/^\[x\] (.*$)/gim, '<li class="todo-list-item checked"><input type="checkbox" checked> $1</li>');
+            text = text.replace(/(<li class="todo-list-item.*<\/li>)/gs, '<ul class="todo-list">$1</ul>');
+            
+            // 转换无序列表
+            text = text.replace(/^\- (.*$)/gim, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+            
+            // 转换有序列表
+            text = text.replace(/^\d+\. (.*$)/gim, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/gs, '<ol>$1</ol>');
+            
+            // 转换分割线
+            text = text.replace(/^\-\-\-$/gim, '<hr>');
+            
+            // 转换高亮文本
+            text = text.replace(/==(.*?)==/g, '<span class="highlight">$1</span>');
+            
+            // 转换信息块
+            text = text.replace(/^!!!info\n([\s\S]*?)!!!$/gm, '<div class="callout info">$1</div>');
+            text = text.replace(/^!!!warning\n([\s\S]*?)!!!$/gm, '<div class="callout warning">$1</div>');
+            text = text.replace(/^!!!error\n([\s\S]*?)!!!$/gm, '<div class="callout error">$1</div>');
+            
+            {
+                const lines = text.split('\n');
+                let inPre = false;
+                text = lines.map(line => {
+                    if (!line) return '';
+                    if (line.includes('<pre')) { inPre = true; return line; }
+                    if (line.includes('</pre>')) { inPre = false; return line; }
+                    if (inPre) return line;
+                    if (/^</.test(line)) return line;
+                    return `<p>${line}</p>`;
+                }).join('\n');
+            }
+            
+            // 处理换行，但保留代码块内的换行
+            const codeBlockRegex = /(<pre><code.*?>)([\s\S]*?)(<\/code><\/pre>)/g;
+            const codeBlocks = [];
+            
+            // 提取代码块
+            text = text.replace(codeBlockRegex, (match, openTag, content, closeTag) => {
+                const index = codeBlocks.length;
+                // 保留代码块中的换行符
+                const preservedContent = content.replace(/\n/g, '__NEWLINE__');
+                codeBlocks.push(preservedContent);
+                return `${openTag}CODE_BLOCK_${index}${closeTag}`;
+            });
+            
+            // 处理非代码块区域的换行
+            text = text.replace(/\n/g, '<br>');
+            
+            // 恢复代码块内容，保持原始格式
+            text = text.replace(/CODE_BLOCK_(\d+)/g, (match, index) => {
+                // 恢复代码块中的换行符
+                return codeBlocks[index].replace(/__NEWLINE__/g, '\n');
+            });
+            
+            return text;
+        }
+
+        // 生成目录
+        function generateTOC() {
+            const headings = [];
+            const lines = editor.value.split('\n');
+            
+            lines.forEach(line => {
+                const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+                if (headingMatch) {
+                    const level = headingMatch[1].length;
+                    const text = headingMatch[2];
+                    const id = 'heading-' + text.replace(/\s+/g, '-');
+                    headings.push({ level, text, id });
+                }
+            });
+            
+            // 清空现有目录
+            tocList.innerHTML = '';
+            
+            // 生成目录项
+            headings.forEach(heading => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = '#' + heading.id;
+                a.textContent = heading.text;
+                a.style.paddingLeft = (heading.level - 1) * 10 + 'px';
+                li.appendChild(a);
+                tocList.appendChild(li);
+            });
+        }
+
+        // 更新预览
+        function updatePreview() {
+            preview.innerHTML = parseMarkdown(editor.value);
+            
+            // 应用代码高亮
+            setTimeout(() => {
+                preview.querySelectorAll('pre code').forEach((block) => {
+                    // 确保代码块内容正确显示后再进行高亮
+                    hljs.highlightElement(block);
+                    // 强制重新计算样式以确保高亮正确显示
+                    block.classList.add('hljs');
+                });
+            }, 0);
+            
+            updateStats();
+            generateTOC();
+            
+            // 保存历史记录（防抖处理）
+            clearTimeout(updatePreview.timeout);
+            updatePreview.timeout = setTimeout(() => {
+                history.saveState(editor.value);
+            }, 1000);
+            
+            // 为待办列表添加交互功能
+            const todoItems = preview.querySelectorAll('.todo-list-item');
+            todoItems.forEach((item, index) => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) {
+                    // 添加事件监听器
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            item.classList.add('checked');
+                        } else {
+                            item.classList.remove('checked');
+                        }
+                        
+                        // 更新编辑器中的内容
+                        const lines = editor.value.split('\n');
+                        let todoIndex = -1;
+                        
+                        // 找到对应的待办事项行
+                        for (let i = 0; i < lines.length; i++) {
+                            if (lines[i].match(/^\[ \] .*/)) {
+                                todoIndex++;
+                                if (todoIndex === index) {
+                                    lines[i] = lines[i].replace('[ ]', '[x]');
+                                    break;
+                                }
+                            } else if (lines[i].match(/^\[x\] .*/)) {
+                                todoIndex++;
+                                if (todoIndex === index) {
+                                    lines[i] = lines[i].replace('[x]', '[ ]');
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        editor.value = lines.join('\n');
+                        history.saveState(editor.value);
+                    });
+                }
+            });
+        }
+        
+        // 添加防抖定时器ID属性
+        updatePreview.timeout = null;
+        
+        // 双击同步滚动功能
+        editor.addEventListener('dblclick', () => {
+            const cursorPos = editor.selectionStart;
+            const lines = editor.value.split('\n');
+            const totalLines = lines.length;
+            const textBeforeCursor = editor.value.substring(0, cursorPos);
+            const lineNum = textBeforeCursor.split('\n').length;
+
+            let lastHeading = null;
+            for (let i = 0; i < lineNum; i++) {
+                const m = lines[i].match(/^(#{1,6})\s+(.*)$/);
+                if (m) lastHeading = m[2];
+            }
+
+            if (lastHeading) {
+                const id = 'heading-' + lastHeading.replace(/\s+/g, '-');
+                const esc = (s) => (window.CSS && CSS.escape) ? CSS.escape(s) : s;
+                const el = preview.querySelector('#' + esc(id));
+                if (el) {
+                    el.classList.add('sync-highlight');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => { el.classList.remove('sync-highlight'); }, 1000);
+                    return;
+                }
+            }
+
+            const ratio = Math.max(0, Math.min(1, (lineNum - 1) / Math.max(1, totalLines - 1)));
+            const maxScroll = preview.scrollHeight - preview.clientHeight;
+            preview.scrollTop = ratio * maxScroll;
+        });
+
+        // 更新统计信息
+        function updateStats() {
+            const text = editor.value;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            const chars = text.length;
+            const lines = text.split('\n').length;
+            
+            wordCount.textContent = `字数: ${words}`;
+            charCount.textContent = `字符: ${chars}`;
+            lineCount.textContent = `行数: ${lines}`;
+        }
+
+        // 插入文本到光标位置
+        function insertAtCursor(text) {
+            const startPos = editor.selectionStart;
+            const endPos = editor.selectionEnd;
+            const before = editor.value.substring(0, startPos);
+            const after = editor.value.substring(endPos);
+            
+            editor.value = before + text + after;
+            editor.selectionStart = editor.selectionEnd = startPos + text.length;
+            editor.focus();
+            updatePreview();
+        }
+
+        // 在当前行插入文本
+        function insertAtLineStart(text) {
+            const cursorPos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, cursorPos);
+            const lines = textBefore.split('\n');
+            const currentLineIndex = lines.length - 1;
+            
+            // 找到当前行的开始位置
+            const lineStartPos = cursorPos - lines[currentLineIndex].length;
+            
+            const before = editor.value.substring(0, lineStartPos);
+            const after = editor.value.substring(lineStartPos);
+            
+            editor.value = before + text + after;
+            editor.selectionStart = editor.selectionEnd = cursorPos + text.length;
+            editor.focus();
+            updatePreview();
+        }
+
+        // 创建并下载文件
+        function downloadFile(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 读取文件内容
+        function readFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                editor.value = e.target.result;
+                updatePreview();
+            };
+            reader.readAsText(file);
+        }
+
+        function getFiles() {
+            try {
+                const v = localStorage.getItem('typora-files');
+                return v ? JSON.parse(v) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function setFiles(files) {
+            localStorage.setItem('typora-files', JSON.stringify(files));
+        }
+
+        function setCurrentFileId(id) {
+            currentFileId = id;
+            localStorage.setItem('typora-current', id || '');
+        }
+
+        function renderFileList() {
+            const files = getFiles();
+            fileListEl.innerHTML = files.map(f => {
+                const d = new Date(f.updatedAt);
+                const t = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                const active = f.id === currentFileId ? ' style="background:#eef2f7"' : '';
+                return `<div class="file-item" data-id="${f.id}"${active}><div><div class="file-name">${f.name}</div><div class="file-meta">${t}</div></div><div class="file-actions"><button class="file-action" data-action="delete" data-id="${f.id}">✕</button></div></div>`;
+            }).join('');
+        }
+
+        function loadFileById(id) {
+            const files = getFiles();
+            const f = files.find(x => x.id === id);
+            if (!f) return;
+            editor.value = f.content || '';
+            setCurrentFileId(id);
+            updatePreview();
+            renderFileList();
+        }
+
+        function newFileAction() {
+            editor.value = '';
+            setCurrentFileId(null);
+            updatePreview();
+        }
+
+        function saveFileAction() {
+            const files = getFiles();
+            let f = files.find(x => x.id === currentFileId);
+            const baseName = f ? f.name : '未命名';
+            const name = prompt('文件名', baseName) || baseName;
+            if (f) {
+                f.name = name;
+                f.content = editor.value;
+                f.updatedAt = Date.now();
+            } else {
+                const id = Math.random().toString(36).slice(2);
+                f = { id, name, content: editor.value, updatedAt: Date.now() };
+                files.unshift(f);
+                setCurrentFileId(id);
+            }
+            setFiles(files);
+            renderFileList();
+            alert('已保存');
+        }
+
+        // 搜索功能
+        function searchInPreview(keyword) {
+            if (!keyword) {
+                // 清除高亮
+                preview.innerHTML = preview.innerHTML.replace(/<mark>(.*?)<\/mark>/g, '$1');
+                return;
+            }
+            
+            // 先清除之前的高亮
+            preview.innerHTML = preview.innerHTML.replace(/<mark>(.*?)<\/mark>/g, '$1');
+            
+            // 添加新的高亮
+            const regex = new RegExp(`(${keyword})`, 'gi');
+            preview.innerHTML = preview.innerHTML.replace(regex, '<mark>$1</mark>');
+        }
+
+        // 工具栏按钮事件
+        document.getElementById('boldBtn').addEventListener('click', () => {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+            const before = editor.value.substring(0, start);
+            const after = editor.value.substring(end);
+            
+            if (selectedText) {
+                // 如果有选中文本，则包裹加粗标记
+                editor.value = before + '**' + selectedText + '**' + after;
+                editor.selectionStart = start + 2;
+                editor.selectionEnd = start + 2 + selectedText.length;
+            } else {
+                // 如果没有选中文本，则插入加粗标记
+                insertAtCursor('****');
+                editor.selectionStart = start + 2;
+                editor.selectionEnd = start + 2;
+            }
+            editor.focus();
+            updatePreview();
+        });
+
+        document.getElementById('italicBtn').addEventListener('click', () => {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+            const before = editor.value.substring(0, start);
+            const after = editor.value.substring(end);
+            
+            if (selectedText) {
+                // 如果有选中文本，则包裹斜体标记
+                editor.value = before + '*' + selectedText + '*' + after;
+                editor.selectionStart = start + 1;
+                editor.selectionEnd = start + 1 + selectedText.length;
+            } else {
+                // 如果没有选中文本，则插入斜体标记
+                insertAtCursor('**');
+                editor.selectionStart = start + 1;
+                editor.selectionEnd = start + 1;
+            }
+            editor.focus();
+            updatePreview();
+        });
+
+        document.getElementById('headingBtn').addEventListener('click', () => {
+            insertAtLineStart('# ');
+        });
+
+        document.getElementById('linkBtn').addEventListener('click', () => {
+            insertAtCursor('[链接文本](http://)');
+        });
+
+        document.getElementById('imageBtn').addEventListener('click', () => {
+            insertAtCursor('![替代文本](图片地址)');
+        });
+
+        document.getElementById('ulBtn').addEventListener('click', () => {
+            insertAtLineStart('- ');
+        });
+
+        document.getElementById('olBtn').addEventListener('click', () => {
+            insertAtLineStart('1. ');
+        });
+
+        document.getElementById('todoListBtn').addEventListener('click', () => {
+            insertAtLineStart('[ ] ');
+        });
+
+        document.getElementById('quoteBtn').addEventListener('click', () => {
+            insertAtLineStart('> ');
+        });
+
+        document.getElementById('codeBtn').addEventListener('click', () => {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+            const before = editor.value.substring(0, start);
+            const after = editor.value.substring(end);
+            
+            if (selectedText) {
+                // 如果有选中文本，则包裹代码块标记（默认使用javascript语言）
+                editor.value = before + '\n```javascript\n' + selectedText + '\n```\n' + after;
+                editor.selectionStart = start + 16;
+            } else {
+                // 如果没有选中文本，则插入代码块标记（默认使用javascript语言）
+                insertAtCursor('\n```javascript\n\n```\n');
+                editor.selectionStart = start + 16;
+                editor.selectionEnd = start + 16;
+            }
+            editor.focus();
+            updatePreview();
+        });
+
+        document.getElementById('hrBtn').addEventListener('click', () => {
+            insertAtCursor('\n---\n');
+        });
+
+        document.getElementById('highlightBtn').addEventListener('click', () => {
+            insertAtCursor('====');
+        });
+
+        document.getElementById('calloutInfoBtn').addEventListener('click', () => {
+            insertAtCursor('\n!!!info\n信息内容\n!!!\n');
+        });
+
+        document.getElementById('calloutWarningBtn').addEventListener('click', () => {
+            insertAtCursor('\n!!!warning\n警告内容\n!!!\n');
+        });
+
+        document.getElementById('calloutErrorBtn').addEventListener('click', () => {
+            insertAtCursor('\n!!!error\n错误内容\n!!!\n');
+        });
+
+        document.getElementById('previewToggle').addEventListener('click', () => {
+            preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+            document.body.classList.toggle('fullscreen');
+        });
+
+        document.getElementById('tocToggle').addEventListener('click', () => {
+            toc.classList.toggle('show');
+        });
+
+        // 文件操作事件
+        document.getElementById('newFile').addEventListener('click', () => {
+            newFileAction();
+        });
+
+        document.getElementById('openFile').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        document.getElementById('saveFile').addEventListener('click', () => {
+            saveFileAction();
+        });
+
+        document.getElementById('downloadMd').addEventListener('click', () => {
+            downloadFile(editor.value, 'document.md', 'text/markdown');
+        });
+
+        document.getElementById('downloadHtml').addEventListener('click', () => {
+            const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Markdown Document</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+        h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
+        h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        p { margin-top: 0; margin-bottom: 16px; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        pre { padding: 16px; overflow: auto; font-size: 85%; line-height: 1.45; background-color: #f6f8fa; border-radius: 6px; }
+        code { padding: 0.2em 0.4em; margin: 0; font-size: 85%; background-color: rgba(27,31,35,0.05); border-radius: 6px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Monaco, Courier, monospace; }
+        pre code { padding: 0; margin: 0; font-size: 100%; background-color: transparent; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Monaco, Courier, monospace; }
+        blockquote { padding: 0 1em; color: #6a737d; border-left: 0.25em solid #dfe2e5; margin: 0 0 16px; }
+        ul, ol { padding-left: 2em; margin-bottom: 16px; }
+        li { margin-bottom: 4px; }
+        table { display: block; width: 100%; overflow: auto; border-collapse: collapse; margin-bottom: 16px; border-spacing: 0; border-collapse: collapse; }
+        table th, table td { padding: 6px 13px; border: 1px solid #dfe2e5; }
+        table tr:nth-child(2n) { background-color: #f6f8fa; }
+        .todo-list-item { list-style: none; }
+        .todo-list-item input[type="checkbox"] { margin-right: 8px; }
+        .todo-list-item.checked { text-decoration: line-through; color: #6c757d; }
+        .callout { padding: 16px; margin-bottom: 16px; border-radius: 6px; background-color: #f0f4f8; border-left: 4px solid #4285f4; }
+        .callout.info { background-color: #e8f0fe; border-left-color: #4285f4; }
+        .callout.warning { background-color: #fef7e0; border-left-color: #f9ab00; }
+        .callout.error { background-color: #fce8e6; border-left-color: #ea4335; }
+        .highlight { background-color: #ffeb3b; padding: 0 2px; }
+    </style>
+</head>
+<body>
+    ${parseMarkdown(editor.value)}
+</body>
+</html>`;
+            downloadFile(htmlContent, 'document.html', 'text/html');
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                readFile(file);
+            }
+        });
+
+        // 搜索功能
+        searchInput.addEventListener('input', (e) => {
+            searchInPreview(e.target.value);
+        });
+
+        // 快捷键处理
+        document.addEventListener('keydown', (e) => {
+            // 检查是否按下了Ctrl键
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'b':
+                    case 'B':
+                        e.preventDefault();
+                        // 加粗功能：包裹选中文本
+                        const boldStart = editor.selectionStart;
+                        const boldEnd = editor.selectionEnd;
+                        const boldSelectedText = editor.value.substring(boldStart, boldEnd);
+                        const boldBefore = editor.value.substring(0, boldStart);
+                        const boldAfter = editor.value.substring(boldEnd);
+                        
+                        if (boldSelectedText) {
+                            // 如果有选中文本，则包裹加粗标记
+                            editor.value = boldBefore + '**' + boldSelectedText + '**' + boldAfter;
+                            editor.selectionStart = boldStart + 2;
+                            editor.selectionEnd = boldStart + 2 + boldSelectedText.length;
+                        } else {
+                            // 如果没有选中文本，则插入加粗标记
+                            insertAtCursor('****');
+                            editor.selectionStart = boldStart + 2;
+                            editor.selectionEnd = boldStart + 2;
+                        }
+                        editor.focus();
+                        updatePreview();
+                        break;
+                    case 'i':
+                    case 'I':
+                        e.preventDefault();
+                        // 斜体功能：包裹选中文本
+                        const italicStart = editor.selectionStart;
+                        const italicEnd = editor.selectionEnd;
+                        const italicSelectedText = editor.value.substring(italicStart, italicEnd);
+                        const italicBefore = editor.value.substring(0, italicStart);
+                        const italicAfter = editor.value.substring(italicEnd);
+                        
+                        if (italicSelectedText) {
+                            // 如果有选中文本，则包裹斜体标记
+                            editor.value = italicBefore + '*' + italicSelectedText + '*' + italicAfter;
+                            editor.selectionStart = italicStart + 1;
+                            editor.selectionEnd = italicStart + 1 + italicSelectedText.length;
+                        } else {
+                            // 如果没有选中文本，则插入斜体标记
+                            insertAtCursor('**');
+                            editor.selectionStart = italicStart + 1;
+                            editor.selectionEnd = italicStart + 1;
+                        }
+                        editor.focus();
+                        updatePreview();
+                        break;
+                    case 'h':
+                    case 'H':
+                        e.preventDefault();
+                        insertAtLineStart('# ');
+                        break;
+                    case 'k':
+                    case 'K':
+                        e.preventDefault();
+                        insertAtCursor('[链接文本](http://)');
+                        break;
+                    case 'u':
+                    case 'U':
+                        e.preventDefault();
+                        insertAtLineStart('- ');
+                        break;
+                    case 'q':
+                    case 'Q':
+                        e.preventDefault();
+                        insertAtLineStart('> ');
+                        break;
+                    case 'p':
+                    case 'P':
+                        e.preventDefault();
+                        preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+                        break;
+                    case 's':
+                    case 'S':
+                        e.preventDefault();
+                        saveFileAction();
+                        break;
+                    case 'n':
+                    case 'N':
+                        e.preventDefault();
+                        editor.value = '';
+                        updatePreview();
+                        break;
+                    case 'o':
+                    case 'O':
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            insertAtLineStart('1. ');
+                        } else {
+                            fileInput.click();
+                        }
+                        break;
+                    case 'j':
+                    case 'J':
+                        e.preventDefault();
+                        toc.classList.toggle('show');
+                        break;
+                    case 'f':
+                    case 'F':
+                        e.preventDefault();
+                        searchInput.focus();
+                        break;
+                    case 'z':
+                    case 'Z':
+                        // 撤销 (Ctrl+Z)
+                        e.preventDefault();
+                        const prevState = history.undo();
+                        if (prevState !== null) {
+                            editor.value = prevState;
+                            updatePreview();
+                        }
+                        break;
+                    case 'y':
+                    case 'Y':
+                        // 重做 (Ctrl+Y)
+                        e.preventDefault();
+                        const nextState = history.redo();
+                        if (nextState !== null) {
+                            editor.value = nextState;
+                            updatePreview();
+                        }
+                        break;
+                }
+                
+                // 检查是否按下了Ctrl+Shift键
+                if (e.shiftKey) {
+                    switch (e.key) {
+                        case 'i':
+                        case 'I':
+                            e.preventDefault();
+                            insertAtCursor('![替代文本](图片地址)');
+                            break;
+                        case 'c':
+                        case 'C':
+                            e.preventDefault();
+                            // 代码块功能：包裹选中文本
+                            const codeStart = editor.selectionStart;
+                            const codeEnd = editor.selectionEnd;
+                            const codeSelectedText = editor.value.substring(codeStart, codeEnd);
+                            const codeBefore = editor.value.substring(0, codeStart);
+                            const codeAfter = editor.value.substring(codeEnd);
+                            
+                            if (codeSelectedText) {
+                                editor.value = codeBefore + '\n```javascript\n' + codeSelectedText + '\n```\n' + codeAfter;
+                                editor.selectionStart = codeStart + 16;
+                            } else {
+                                insertAtCursor('\n```javascript\n\n```\n');
+                                editor.selectionStart = codeStart + 16;
+                                editor.selectionEnd = codeStart + 16;
+                            }
+                            editor.focus();
+                            updatePreview();
+                            break;
+                        case 'h':
+                        case 'H':
+                            e.preventDefault();
+                            const startPos = editor.selectionStart;
+                            const endPos = editor.selectionEnd;
+                            if (startPos !== endPos) {
+                                // 如果有选中文本，则添加高亮
+                                const selectedText = editor.value.substring(startPos, endPos);
+                                const before = editor.value.substring(0, startPos);
+                                const after = editor.value.substring(endPos);
+                                editor.value = before + '==' + selectedText + '==' + after;
+                                editor.selectionStart = startPos + 2;
+                                editor.selectionEnd = startPos + 2 + selectedText.length;
+                            } else {
+                                // 否则插入高亮标记
+                                insertAtCursor('====');
+                            }
+                            editor.focus();
+                            updatePreview();
+                            break;
+                        case 'o':
+                        case 'O':
+                            e.preventDefault();
+                            insertAtLineStart('1. ');
+                            break;
+                        case 't':
+                        case 'T':
+                            e.preventDefault();
+                            insertAtLineStart('[ ] ');
+                            break;
+                    }
+                }
+            }
+            
+            // F11全屏
+            if (e.key === 'F11') {
+                e.preventDefault();
+                document.body.classList.toggle('fullscreen');
+            }
+        });
+
+        // 初始化
+        editor.addEventListener('input', updatePreview);
+        window.addEventListener('load', () => {
+            const files = getFiles();
+            const current = localStorage.getItem('typora-current');
+            if (files.length === 0) {
+                const legacy = localStorage.getItem('markdown-content');
+                if (legacy) {
+                    const id = Math.random().toString(36).slice(2);
+                    const f = { id, name: '未命名', content: legacy, updatedAt: Date.now() };
+                    setFiles([f]);
+                    setCurrentFileId(id);
+                    editor.value = legacy;
+                }
+            } else {
+                if (current) {
+                    setCurrentFileId(current);
+                    const f = files.find(x => x.id === current);
+                    if (f) editor.value = f.content || '';
+                }
+            }
+            renderFileList();
+            updatePreview();
+        });
+
+        newSidebarFileBtn.addEventListener('click', () => {
+            newFileAction();
+        });
+
+        fileListEl.addEventListener('click', (e) => {
+            const t = e.target;
+            const action = t.getAttribute('data-action');
+            if (action === 'delete') {
+                const id = t.getAttribute('data-id');
+                const files = getFiles().filter(x => x.id !== id);
+                setFiles(files);
+                if (currentFileId === id) setCurrentFileId(null);
+                renderFileList();
+                return;
+            }
+            const item = t.closest('.file-item');
+            if (item && item.getAttribute('data-id')) {
+                loadFileById(item.getAttribute('data-id'));
+            }
+        });
+
+        // 页面加载完成后初始化预览
+        updatePreview();
+    </script>
+</body>
+</html>
